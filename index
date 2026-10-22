@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Afinador de Instrumentos</title>
+  <style>
+    :root {
+      --bg: #121820;
+      --card-bg: #1e2632;
+      --accent: #00d26a;
+      --accent-warn: #f5a623;
+      --accent-danger: #ff4d4d;
+      --text: #f0f4f8;
+      --text-muted: #8c9ba8;
+      --primary: #3b82f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      touch-action: manipulation;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .tuner-container {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      margin-bottom: 16px;
+    }
+
+    .status-alert {
+      display: none;
+      background: rgba(255, 77, 77, 0.2);
+      border: 1px solid var(--accent-danger);
+      color: #ff9999;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    .instrument-select {
+      margin-bottom: 20px;
+    }
+
+    select {
+      width: 100%;
+      background: #2a3444;
+      color: var(--text);
+      border: 1px solid #3c495e;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .meter-container {
+      position: relative;
+      width: 100%;
+      height: 100px;
+      margin: 15px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .gauge-track {
+      width: 90%;
+      height: 6px;
+      background: #2c3848;
+      border-radius: 3px;
+      position: relative;
+    }
+
+    .gauge-center {
+      position: absolute;
+      left: 50%;
+      top: -6px;
+      width: 4px;
+      height: 18px;
+      background: var(--accent);
+      transform: translateX(-50%);
+      border-radius: 2px;
+    }
+
+    .needle {
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      width: 4px;
+      height: 48px;
+      background: #ffffff;
+      transform-origin: bottom center;
+      transform: translateX(-50%) rotate(0deg);
+      transition: transform 0.08s ease-out;
+      border-radius: 2px;
+    }
+
+    .needle.in-tune {
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+    }
+
+    .gauge-scale {
+      width: 90%;
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .note-display {
+      margin: 10px 0;
+    }
+
+    .note-name {
+      font-size: 4rem;
+      font-weight: 800;
+      line-height: 1.1;
+      min-height: 70px;
+    }
+
+    .in-tune-text {
+      color: var(--accent) !important;
+    }
+
+    .frequency-info {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    .cents-info {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 14px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-mic {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-mic.active {
+      background: var(--accent-danger);
+    }
+
+    .reference-box {
+      background: #18202b;
+      padding: 14px;
+      border-radius: 12px;
+      margin-top: 15px;
+      border: 1px solid #2a374a;
+    }
+
+    .reference-title {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .strings-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .string-btn {
+      background: #2a3444;
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      flex: 1 1 28%;
+      min-width: 55px;
+    }
+
+    .string-btn.active {
+      background: var(--accent);
+      color: #000;
+      font-weight: bold;
+    }
+
+    .ref-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .volume-slider {
+      flex: 1;
+      accent-color: var(--primary);
+      height: 6px;
+    }
+
+    .btn-tone {
+      background: #2c3848;
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 0.85rem;
+    }
+
+    .btn-tone.active {
+      background: var(--accent);
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+
+<div class="tuner-container">
+  <h1>Afinador de Instrumentos</h1>
+
+  <div id="statusAlert" class="status-alert"></div>
+
+  <div class="instrument-select">
+    <select id="instrumentSelector">
+      <option value="guitar">Guitarra / Violão (Padrão)</option>
+      <option value="bass">Baixo (4 Cordas)</option>
+      <option value="ukulele">Ukulele (GCEA)</option>
+      <option value="violin">Violino</option>
+    </select>
+  </div>
+
+  <div class="note-display">
+    <div class="note-name" id="detectedNote">--</div>
+    <div class="frequency-info" id="detectedFreq">0.0 Hz</div>
+    <div class="cents-info" id="centsOffset">Aguardando início...</div>
+  </div>
+
+  <div class="meter-container">
+    <div class="needle" id="needle"></div>
+    <div class="gauge-track">
+      <div class="gauge-center"></div>
+    </div>
+    <div class="gauge-scale">
+      <span>-50¢ (Grave)</span>
+      <span>0</span>
+      <span>+50¢ (Agudo)</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-mic" id="micToggleBtn">
+      <span>🎤 Iniciar Microfone</span>
+    </button>
+  </div>
+
+  <div class="reference-box">
+    <div class="reference-title">Tom de Referência</div>
+    <div class="strings-grid" id="stringsContainer"></div>
+    <div class="ref-controls">
+      <button class="btn-tone" id="toggleToneBtn">Tocar Tom</button>
+      <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="0.3">
+    </div>
+  </div>
+</div>
+
+<script>
+  const instruments = {
+    guitar: [
+      { name: 'E2 (6ª)', freq: 82.41 },
+      { name: 'A2 (5ª)', freq: 110.00 },
+      { name: 'D3 (4ª)', freq: 146.83 },
+      { name: 'G3 (3ª)', freq: 196.00 },
+      { name: 'B3 (2ª)', freq: 246.94 },
+      { name: 'E4 (1ª)', freq: 329.63 }
+    ],
+    bass: [
+      { name: 'E1 (4ª)', freq: 41.20 },
+      { name: 'A1 (3ª)', freq: 55.00 },
+      { name: 'D2 (2ª)', freq: 73.42 },
+      { name: 'G2 (1ª)', freq: 98.00 }
+    ],
+    ukulele: [
+      { name: 'G4 (4ª)', freq: 392.00 },
+      { name: 'C4 (3ª)', freq: 261.63 },
+      { name: 'E4 (2ª)', freq: 329.63 },
+      { name: 'A4 (1ª)', freq: 440.00 }
+    ],
+    violin: [
+      { name: 'G3 (4ª)', freq: 196.00 },
+      { name: 'D4 (3ª)', freq: 293.66 },
+      { name: 'A4 (2ª)', freq: 440.00 },
+      { name: 'E5 (1ª)', freq: 659.25 }
+    ]
+  };
+
+  const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+  let audioContext = null;
+  let micStream = null;
+  let analyser = null;
+  let isListening = false;
+  let buffer = null;
+
+  let refOscillator = null;
+  let refGainNode = null;
+  let isPlayingTone = false;
+  let selectedToneFreq = 82.41;
+
+  const micToggleBtn = document.getElementById('micToggleBtn');
+  const detectedNoteEl = document.getElementById('detectedNote');
+  const detectedFreqEl = document.getElementById('detectedFreq');
+  const centsOffsetEl = document.getElementById('centsOffset');
+  const needleEl = document.getElementById('needle');
+  const instrumentSelector = document.getElementById('instrumentSelector');
+  const stringsContainer = document.getElementById('stringsContainer');
+  const toggleToneBtn = document.getElementById('toggleToneBtn');
+  const volumeSlider = document.getElementById('volumeSlider');
+  const statusAlert = document.getElementById('statusAlert');
+
+  function showError(msg) {
+    statusAlert.textContent = msg;
+    statusAlert.style.display = 'block';
+  }
+
+  function clearError() {
+    statusAlert.style.display = 'none';
+  }
+
+  function setupStringButtons() {
+    const current = instrumentSelector.value;
+    const strings = instruments[current];
+    stringsContainer.innerHTML = '';
+
+    strings.forEach((str, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'string-btn' + (idx === 0 ? ' active' : '');
+      btn.textContent = str.name;
+      btn.onclick = () => {
+        document.querySelectorAll('.string-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedToneFreq = str.freq;
+        if (isPlayingTone && refOscillator && audioContext) {
+          refOscillator.frequency.setValueAtTime(selectedToneFreq, audioContext.currentTime);
+        }
+      };
+      stringsContainer.appendChild(btn);
+    });
+
+    selectedToneFreq = strings[0].freq;
+  }
+
+  instrumentSelector.addEventListener('change', setupStringButtons);
+  setupStringButtons();
+
+  async function initAudioContext() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      showError('O seu navegador não suporta Web Audio API.');
+      return null;
+    }
+    if (!audioContext) {
+      audioContext = new AudioContextClass();
+    }
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+    return audioContext;
+  }
+
+  toggleToneBtn.addEventListener('click', async () => {
+    clearError();
+    const ctx = await initAudioContext();
+    if (!ctx) return;
+
+    if (isPlayingTone) {
+      stopTone();
+    } else {
+      startTone(selectedToneFreq);
+    }
+  });
+
+  function startTone(frequency) {
+    refOscillator = audioContext.createOscillator();
+    refGainNode = audioContext.createGain();
+
+    refOscillator.type = 'triangle';
+    refOscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+    refGainNode.gain.setValueAtTime(parseFloat(volumeSlider.value), audioContext.currentTime);
+
+    refOscillator.connect(refGainNode);
+    refGainNode.connect(audioContext.destination);
+
+    refOscillator.start();
+    isPlayingTone = true;
+    toggleToneBtn.classList.add('active');
+    toggleToneBtn.textContent = 'Parar';
+  }
+
+  function stopTone() {
+    if (refOscillator) {
+      refOscillator.stop();
+      refOscillator.disconnect();
+      refOscillator = null;
+    }
+    isPlayingTone = false;
+    toggleToneBtn.classList.remove('active');
+    toggleToneBtn.textContent = 'Tocar Tom';
+  }
+
+  volumeSlider.addEventListener('input', (e) => {
+    if (refGainNode && isPlayingTone && audioContext) {
+      refGainNode.gain.setValueAtTime(parseFloat(e.target.value), audioContext.currentTime);
+    }
+  });
+
+  micToggleBtn.addEventListener('click', async () => {
+    clearError();
+    if (isListening) {
+      stopListening();
+    } else {
+      await startListening();
+    }
+  });
+
+  async function startListening() {
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      showError('No telemóvel, o microfone exige uma ligação segura HTTPS. Abra o ficheiro através de https:// ou aloje-o na Web.');
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showError('Acesso ao microfone não suportado pelo navegador.');
+      return;
+    }
+
+    try {
+      const ctx = await initAudioContext();
+      if (!ctx) return;
+
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          autoGainControl: false,
+          noiseSuppression: false
+        }
+      });
+
+      const source = ctx.createMediaStreamSource(micStream);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+
+      buffer = new Float32Array(analyser.fftSize);
+      isListening = true;
+
+      micToggleBtn.classList.add('active');
+      micToggleBtn.innerHTML = '🛑 Parar Microfone';
+      centsOffsetEl.textContent = 'A escutar...';
+
+      updatePitch();
+    } catch (err) {
+      console.error(err);
+      showError('Permissão do microfone recusada ou indisponível.');
+    }
+  }
+
+  function stopListening() {
+    isListening = false;
+    if (micStream) {
+      micStream.getTracks().forEach(track => track.stop());
+    }
+    micToggleBtn.classList.remove('active');
+    micToggleBtn.innerHTML = '🎤 Iniciar Microfone';
+    detectedNoteEl.textContent = '--';
+    detectedNoteEl.classList.remove('in-tune-text');
+    detectedFreqEl.textContent = '0.0 Hz';
+    centsOffsetEl.textContent = 'Aguardando início...';
+    needleEl.style.transform = `translateX(-50%) rotate(0deg)`;
+    needleEl.classList.remove('in-tune');
+  }
+
+  function autoCorrelate(buf, sampleRate) {
+    let size = buf.length;
+    let rms = 0;
+
+    for (let i = 0; i < size; i++) {
+      const val = buf[i];
+      rms += val * val;
+    }
+    rms = Math.sqrt(rms / size);
+
+    if (rms < 0.012) return -1;
+
+    let r1 = 0, r2 = size - 1, thres = 0.2;
+    for (let i = 0; i < size / 2; i++) {
+      if (Math.abs(buf[i]) < thres) {
+        r1 = i;
+        break;
+      }
+    }
+    for (let i = 1; i < size / 2; i++) {
+      if (Math.abs(buf[size - i]) < thres) {
+        r2 = size - i;
+        break;
+      }
+    }
+
+    buf = buf.slice(r1, r2);
+    size = buf.length;
+
+    const c = new Array(size).fill(0);
+    for (let i = 0; i < size; i++) {
+      for (let j = 0; j < size - i; j++) {
+        c[i] = c[i] + buf[j] * buf[j + i];
+      }
+    }
+
+    let d = 0;
+    while (c[d] > c[d + 1]) d++;
+    let maxval = -1, maxpos = -1;
+    for (let i = d; i < size; i++) {
+      if (c[i] > maxval) {
+        maxval = c[i];
+        maxpos = i;
+      }
+    }
+    let T0 = maxpos;
+
+    const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+    const a = (x1 + x3 - 2 * x2) / 2;
+    const b = (x3 - x1) / 2;
+    if (a) T0 = T0 - b / (2 * a);
+
+    return sampleRate / T0;
+  }
+
+  function getNoteFromFrequency(freq) {
+    const noteNum = 12 * (Math.log(freq / 440) / Math.log(2));
+    const midi = Math.round(noteNum) + 69;
+    const noteIndex = (midi % 12 + 12) % 12;
+    const octave = Math.floor(midi / 12) - 1;
+    const standardFreq = 440 * Math.pow(2, (midi - 69) / 12);
+    const cents = Math.floor(1200 * Math.log2(freq / standardFreq));
+
+    return {
+      name: noteStrings[noteIndex] + octave,
+      cents: cents
+    };
+  }
+
+  function updatePitch() {
+    if (!isListening) return;
+
+    analyser.getFloatTimeDomainData(buffer);
+    const pitch = autoCorrelate(buffer, audioContext.sampleRate);
+
+    if (pitch !== -1 && pitch > 30 && pitch < 2000) {
+      const note = getNoteFromFrequency(pitch);
+
+      detectedNoteEl.textContent = note.name;
+      detectedFreqEl.textContent = `${pitch.toFixed(1)} Hz`;
+
+      const clampedCents = Math.max(-50, Math.min(50, note.cents));
+      const rotation = (clampedCents / 50) * 45;
+      needleEl.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+
+      const isAffined = Math.abs(note.cents) <= 3;
+
+      if (isAffined) {
+        needleEl.classList.add('in-tune');
+        detectedNoteEl.classList.add('in-tune-text');
+        centsOffsetEl.textContent = 'Afinado! (0¢)';
+        centsOffsetEl.style.color = 'var(--accent)';
+      } else {
+        needleEl.classList.remove('in-tune');
+        detectedNoteEl.classList.remove('in-tune-text');
+        centsOffsetEl.textContent = note.cents > 0 ? `+${note.cents}¢ (Agudo)` : `${note.cents}¢ (Grave)`;
+        centsOffsetEl.style.color = 'var(--accent-warn)';
+      }
+    }
+
+    requestAnimationFrame(updatePitch);
+  }
+</script>
+
+</body>
+</html>
